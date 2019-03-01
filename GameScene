@@ -1,0 +1,235 @@
+import SpriteKit
+import GameplayKit
+
+struct PhysicsCat {
+    static let Butter : UInt32 = 0x1 << 1
+    static let Ground : UInt32 = 0x1 << 2
+    static let Wall : UInt32  = 0x1 << 3
+    static let Score: UInt32 = 0x1 << 4
+}
+
+class GameScene: SKScene, SKPhysicsContactDelegate {
+    
+    var Ground = SKSpriteNode()
+    var Butter = SKSpriteNode()
+    var wallPair = SKNode()
+    var backgrond = SKSpriteNode()
+    
+    var died = Bool()
+    var restartBTN = SKSpriteNode()
+    
+    var score = Int()
+    let scoreLabel = SKLabelNode()
+    
+    var moveAndRemove = SKAction()
+    
+    var gameStarted = Bool()
+    
+    var HighScore = Int()
+    let HighScoreLabel = SKLabelNode()
+    
+    func restartScene() {
+        self.removeAllChildren()
+        self.removeAllActions()
+        died = false
+        gameStarted = false
+        score = 0
+        createScene()
+        
+    }
+    func HighScoreDisplay() {
+        if(score > HighScore){
+            HighScore = score
+        }
+        HighScoreLabel.position = CGPoint(x: 0 , y: 300)
+        HighScoreLabel.text = "\(HighScore)"
+        HighScoreLabel.zPosition = 7
+        HighScoreLabel.setScale(3)
+        self.addChild(HighScoreLabel)
+    }
+    
+    func createScene(){
+        
+        scoreLabel.position = CGPoint(x: 0 , y: 450)
+        scoreLabel.text = "\(score)"
+        scoreLabel.zPosition = 6
+        scoreLabel.setScale(3)
+        self.addChild(scoreLabel)
+        
+        
+        
+        self.physicsWorld.contactDelegate = self
+        Ground = SKSpriteNode(imageNamed: "Ground")
+        Ground.setScale(0.7)
+        Ground.position = CGPoint(x: 0, y: 0 - self.frame.height/2)
+        Ground.physicsBody = SKPhysicsBody(rectangleOf: Ground.size)
+        Ground.physicsBody?.categoryBitMask = PhysicsCat.Ground
+        Ground.physicsBody?.collisionBitMask = PhysicsCat.Butter
+        Ground.physicsBody?.contactTestBitMask = PhysicsCat.Butter
+        Ground.physicsBody?.affectedByGravity = false
+        Ground.physicsBody?.isDynamic = false
+        
+        
+        Ground.zPosition = 3
+        
+        
+        self.addChild(Ground)
+        
+        
+        Butter = SKSpriteNode(imageNamed: "Butter")
+        Butter.size = CGSize(width: 500, height: 100)
+        Butter.position = CGPoint(x: 0 , y: 0 + Ground.frame.height/2)
+        Butter.physicsBody = SKPhysicsBody(circleOfRadius: Butter.frame.height / 2)
+        Butter.physicsBody?.categoryBitMask = PhysicsCat.Butter
+        Butter.physicsBody?.collisionBitMask = PhysicsCat.Ground | PhysicsCat.Wall
+        Butter.physicsBody?.contactTestBitMask = PhysicsCat.Ground | PhysicsCat.Wall | PhysicsCat.Score
+        Butter.physicsBody?.affectedByGravity = false
+        Butter.physicsBody?.isDynamic = true
+        
+        
+        Butter.zPosition = 2
+        self.addChild(Butter)
+        
+        backgrond = SKSpriteNode(imageNamed: "back")
+        backgrond.setScale(2)
+        self.addChild(backgrond)
+        
+        
+    }
+    
+    override func didMove(to view: SKView) {
+        createScene()
+    }
+    
+    func createBTN(){
+        restartBTN = SKSpriteNode(imageNamed: "PlayAgain")
+        restartBTN.size = CGSize(width: 300, height: 100)
+        restartBTN.position = CGPoint(x: 0, y: 0)
+        restartBTN.zPosition = 6
+        self.addChild(restartBTN)
+        
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        let firstBody = contact.bodyA
+        let secondBody = contact.bodyB
+        
+        if firstBody.categoryBitMask == PhysicsCat.Score && secondBody.categoryBitMask == PhysicsCat.Butter || firstBody.categoryBitMask == PhysicsCat.Butter && secondBody.categoryBitMask == PhysicsCat.Score{
+            score += 1
+            scoreLabel.text = "\(score)"
+            print(score)
+            
+            
+        }
+        if (firstBody.categoryBitMask == PhysicsCat.Butter && secondBody.categoryBitMask == PhysicsCat.Wall || firstBody.categoryBitMask == PhysicsCat.Wall && secondBody.categoryBitMask == PhysicsCat.Butter){
+            
+            died = true
+            
+            createBTN()
+        }
+        else{
+            
+        }
+        
+        
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if gameStarted == false{
+            gameStarted = true
+            Butter.physicsBody?.affectedByGravity = true
+            let spawn = SKAction.run({
+                () in
+                self.createWalls()
+                
+                
+            })
+            let delay = SKAction.wait(forDuration: 2.0)
+            let SpawnDelay = SKAction.sequence([spawn, delay])
+            let SpawnDelayForever = SKAction.repeatForever(SpawnDelay)
+            self.run(SpawnDelayForever)
+            
+            let distance = CGFloat(self.frame.width + 20)
+            let movePipes = SKAction.moveBy(x: -distance, y: 0, duration: TimeInterval(0.005 * distance))
+            let removePipes = SKAction.removeFromParent()
+            moveAndRemove = SKAction.sequence([movePipes, removePipes])
+            
+            Butter.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+            Butter.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 90))
+            // createWalls()
+            
+        }
+        else{
+            
+            if(died == true){
+                
+            }
+            else{
+                Butter.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+                Butter.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 200))
+            }
+            for touch in touches{
+                let location = touch.location(in: self)
+                
+                if died == true{
+                    if (restartBTN.contains(location)){
+                        restartScene()
+                    }
+                    
+                    
+                }
+                
+            }
+            
+        }
+    }
+    func createWalls(){
+        
+        let scoreNode = SKSpriteNode()
+        scoreNode.size = CGSize(width: 1, height: 360)
+        scoreNode.position = CGPoint(x: self.frame.width - 300 , y: 0)
+        scoreNode.physicsBody = SKPhysicsBody(rectangleOf: scoreNode.size)
+        scoreNode.physicsBody?.affectedByGravity = false
+        scoreNode.physicsBody?.isDynamic = false
+        scoreNode.physicsBody?.categoryBitMask = PhysicsCat.Score
+        scoreNode.physicsBody?.collisionBitMask = 0
+        scoreNode.physicsBody?.contactTestBitMask = PhysicsCat.Butter
+        scoreNode.color = SKColor.blue
+        
+        wallPair = SKNode()
+        wallPair.addChild(scoreNode)
+        let topWall = SKSpriteNode(imageNamed: "Wall")
+        let bottomWall = SKSpriteNode(imageNamed: "Wall")
+        
+        topWall.position = CGPoint(x: self.frame.width - 300 , y:0 + self.frame.height/2 - 300)
+        bottomWall.position = CGPoint(x: self.frame.width - 300 , y:0 -  self.frame.height/2 + 300)
+        topWall.setScale(0.5)
+        bottomWall.setScale(0.5)
+        
+        topWall.physicsBody = SKPhysicsBody(rectangleOf: topWall.size)
+        topWall.physicsBody?.categoryBitMask = PhysicsCat.Wall
+        topWall.physicsBody?.collisionBitMask = PhysicsCat.Butter
+        topWall.physicsBody?.contactTestBitMask = PhysicsCat.Butter
+        topWall.physicsBody?.isDynamic = false
+        topWall.physicsBody?.affectedByGravity = false
+        
+        bottomWall.physicsBody = SKPhysicsBody(rectangleOf: topWall.size)
+        bottomWall.physicsBody?.categoryBitMask = PhysicsCat.Wall
+        bottomWall.physicsBody?.collisionBitMask = PhysicsCat.Butter
+        bottomWall.physicsBody?.contactTestBitMask = PhysicsCat.Butter
+        bottomWall.physicsBody?.isDynamic = false
+        bottomWall.physicsBody?.affectedByGravity = false
+        
+        topWall.zRotation = CGFloat(M_PI)
+        wallPair.zPosition = 1
+        
+        var randomPosition = CGFloat.random(min: -100, max: 100)
+        wallPair.position.y = wallPair.position.y + randomPosition
+        
+        wallPair.addChild(topWall)
+        wallPair.addChild(bottomWall)
+        wallPair.run(moveAndRemove)
+        self.addChild(wallPair)
+    }
+    
+}
